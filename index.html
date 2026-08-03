@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b2f66" />
+    <meta name="description" content="Google Sheets 업무자료를 근거로 답변하는 폴리스텝" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>폴리스텝</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#question">질문 입력으로 바로가기</a>
+
+    <main class="app-shell" id="main-content">
+      <section class="search-view" aria-labelledby="app-title">
+        <div class="brand" id="brand">
+          <img
+            class="brand-mark"
+            src="./assets/police-logo.png"
+            width="220"
+            height="220"
+            alt="경찰 참수리 마크"
+          />
+          <h1 class="brand-name" id="app-title">폴리스텝</h1>
+        </div>
+
+        <form class="search-form" id="search-form" novalidate>
+          <label class="sr-only" for="question">업무 관련 질문</label>
+          <input
+            class="search-input"
+            id="question"
+            name="question"
+            type="search"
+            inputmode="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            maxlength="500"
+            placeholder="무엇이 궁금하신가요?"
+            aria-describedby="status-message"
+          />
+          <button class="search-button" id="submit-button" type="submit">
+            <span class="button-label">검색</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
+
+        <article class="answer-card" id="answer-card" aria-live="polite" aria-labelledby="answer-title" hidden>
+          <div class="answer-heading">
+            <span class="answer-kicker">Sheets 자료 기반 답변</span>
+            <h2 id="answer-title">답변</h2>
+          </div>
+          <p class="answer-text" id="answer-text"></p>
+
+          <section class="sources" id="sources-section" aria-labelledby="sources-title" hidden>
+            <h3 id="sources-title">참고 자료</h3>
+            <ul id="sources-list"></ul>
+          </section>
+
+          <button class="reset-button" id="reset-button" type="button">다시 질문하기</button>
+        </article>
+      </section>
+    </main>
+
+    <noscript>폴리스텝을 사용하려면 브라우저에서 JavaScript를 허용해 주세요.</noscript>
+  </body>
+</html>
