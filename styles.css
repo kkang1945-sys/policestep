@@ -205,6 +205,34 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.index-heading::-webkit-details-marker {
+  display: none;
+}
+
+.index-heading::after {
+  content: "+";
+  flex: none;
+  color: var(--navy-800);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.index-disclosure[open] .index-heading::after {
+  content: "−";
+}
+
+.index-heading:focus-visible {
+  outline: 3px solid rgba(31, 111, 235, 0.28);
+  outline-offset: 0.35rem;
+  border-radius: 0.45rem;
+}
+
+.index-content {
+  padding-top: 0.15rem;
 }
 
 .index-kicker {
