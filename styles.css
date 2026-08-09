@@ -444,6 +444,24 @@ button {
   line-height: 1.4;
 }
 
+.lab-title-link {
+  color: inherit;
+  text-decoration-color: #d5a22e;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2rem;
+}
+
+.lab-title-link::after {
+  content: " ↗";
+  color: #8a5a00;
+  font-size: 0.82em;
+}
+
+.lab-title-link:hover,
+.lab-title-link:focus-visible {
+  color: var(--blue-700);
+}
+
 .lab-card p {
   margin: 0;
 }
@@ -455,11 +473,37 @@ button {
 }
 
 .lab-file {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.65rem 0.75rem;
+  color: var(--navy-900);
+  background: #eef5ff;
+  border: 1px solid #c9daf2;
   border-radius: 0.7rem;
   font-size: 0.82rem;
   font-weight: 750;
+  text-decoration: none;
+}
+
+.lab-file span {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.lab-file:hover,
+.lab-file:focus-visible {
+  color: #ffffff;
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+  outline: none;
+}
+
+.lab-file:hover span,
+.lab-file:focus-visible span {
+  color: #eaf2ff;
 }
 
 .lab-file.is-pending {
