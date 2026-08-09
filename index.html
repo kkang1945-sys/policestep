@@ -52,6 +52,20 @@
 
         <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
 
+        <section class="index-panel" id="index-panel" aria-labelledby="index-title">
+          <div class="index-heading">
+            <div>
+              <span class="index-kicker">검색 색인</span>
+              <h2 id="index-title">검색 가능한 업무</h2>
+            </div>
+            <span class="index-count" id="index-count">불러오는 중</span>
+          </div>
+          <p class="index-description">분류를 펼친 뒤 업무명을 누르면 검색창에 입력됩니다.</p>
+          <div class="index-list" id="index-list" aria-live="polite">
+            <p class="index-loading">업무 목록을 불러오고 있습니다…</p>
+          </div>
+        </section>
+
         <article class="answer-card" id="answer-card" aria-live="polite" aria-labelledby="answer-title" hidden>
           <div class="answer-heading">
             <span class="answer-kicker">Sheets 자료 기반 답변</span>

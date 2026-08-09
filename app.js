@@ -10,6 +10,9 @@
   var sourcesSection = document.getElementById("sources-section");
   var sourcesList = document.getElementById("sources-list");
   var resetButton = document.getElementById("reset-button");
+  var indexPanel = document.getElementById("index-panel");
+  var indexList = document.getElementById("index-list");
+  var indexCount = document.getElementById("index-count");
   var activeController = null;
 
   function setStatus(message, isError) {
@@ -90,12 +93,128 @@
     return messages[errorCode] || fallback || messages.INTERNAL_ERROR;
   }
 
-  async function requestAnswer(question) {
+  function getEndpoint() {
     var runtimeConfig = window.POLICESTEP_CONFIG || {};
     var endpoint = String(runtimeConfig.appsScriptUrl || "").trim();
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(endpoint)) {
       throw { code: "CONFIG_MISSING", message: "Apps Script의 /exec 주소를 config.js에 설정해 주세요." };
     }
+    return endpoint;
+  }
+
+  async function requestJson(body, timeoutMs) {
+    var controller = new AbortController();
+    var timeoutId = window.setTimeout(function () { controller.abort(); }, timeoutMs);
+
+    try {
+      var response = await fetch(getEndpoint(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=UTF-8",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(body),
+        cache: "no-store",
+        redirect: "follow",
+        signal: controller.signal,
+      });
+      var responseText = await response.text();
+      var payload;
+      try {
+        payload = JSON.parse(responseText);
+      } catch (parseError) {
+        throw { code: "INTERNAL_ERROR", message: "서버 응답을 확인할 수 없습니다." };
+      }
+      if (!payload || payload.ok !== true) {
+        throw payload && payload.error
+          ? payload.error
+          : { code: "INTERNAL_ERROR", message: "자료를 가져오지 못했습니다." };
+      }
+      return payload.data || {};
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  function renderIndex(data) {
+    var groups = data && Array.isArray(data.groups) ? data.groups : [];
+    var total = Number(data && data.total) || 0;
+    while (indexList.firstChild) indexList.removeChild(indexList.firstChild);
+
+    if (!groups.length) {
+      var empty = document.createElement("p");
+      empty.className = "index-empty";
+      empty.textContent = "현재 공개된 업무 목록이 없습니다.";
+      indexList.appendChild(empty);
+      indexCount.textContent = "0개 업무";
+      return;
+    }
+
+    groups.forEach(function (group) {
+      var details = document.createElement("details");
+      details.className = "index-group";
+
+      var summary = document.createElement("summary");
+      var category = document.createElement("span");
+      category.className = "index-category";
+      category.textContent = String(group.category || "기타");
+      var count = document.createElement("span");
+      count.className = "index-group-count";
+      count.textContent = String(Number(group.count) || 0) + "개";
+      summary.appendChild(category);
+      summary.appendChild(count);
+      details.appendChild(summary);
+
+      var items = document.createElement("div");
+      items.className = "index-items";
+      (Array.isArray(group.items) ? group.items : []).forEach(function (item) {
+        if (!item || typeof item.title !== "string") return;
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "index-item";
+        button.textContent = item.subcategory
+          ? item.title + " · " + item.subcategory
+          : item.title;
+        button.addEventListener("click", function () {
+          input.value = item.title + "에 대해 알려줘";
+          setStatus("업무명이 입력되었습니다. 검색 버튼을 눌러 주세요.", false);
+          input.focus();
+          input.setSelectionRange(input.value.length, input.value.length);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        items.appendChild(button);
+      });
+      details.appendChild(items);
+      indexList.appendChild(details);
+    });
+
+    indexCount.textContent = total + "개 업무";
+  }
+
+  function renderIndexError(error) {
+    while (indexList.firstChild) indexList.removeChild(indexList.firstChild);
+
+    var message = document.createElement("p");
+    message.className = "index-empty is-error";
+    message.textContent = error && error.code === "INVALID_REQUEST"
+      ? "색인 서버가 이전 버전입니다. Apps Script를 새 버전으로 배포해 주세요."
+      : "업무 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    indexList.appendChild(message);
+    indexCount.textContent = "연결 확인 필요";
+  }
+
+  async function loadIndex() {
+    try {
+      var data = await requestJson({ action: "index" }, 15000);
+      renderIndex(data);
+    } catch (error) {
+      renderIndexError(error);
+    }
+  }
+
+  async function requestAnswer(question) {
+    var runtimeConfig = window.POLICESTEP_CONFIG || {};
+    var endpoint = getEndpoint();
 
     activeController = new AbortController();
     var timeoutMs = Number(runtimeConfig.requestTimeoutMs) || 45000;
@@ -184,6 +303,8 @@
     input.value = "";
     input.focus();
   });
+
+  loadIndex();
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
