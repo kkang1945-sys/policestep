@@ -444,22 +444,40 @@ button {
   line-height: 1.4;
 }
 
-.lab-title-link {
-  color: inherit;
-  text-decoration-color: #d5a22e;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.2rem;
+.lab-lesson-heading {
+  position: relative;
+  padding-right: 1.65rem;
+  cursor: pointer;
+  list-style: none;
 }
 
-.lab-title-link::after {
-  content: " ↗";
+.lab-lesson-heading::-webkit-details-marker {
+  display: none;
+}
+
+.lab-lesson-heading::after {
+  content: "+";
+  position: absolute;
+  top: 50%;
+  right: 0;
   color: #8a5a00;
-  font-size: 0.82em;
+  font-size: 1.2rem;
+  font-weight: 850;
+  transform: translateY(-50%);
 }
 
-.lab-title-link:hover,
-.lab-title-link:focus-visible {
-  color: var(--blue-700);
+.lab-lesson[open] .lab-lesson-heading::after {
+  content: "−";
+}
+
+.lab-lesson-heading:focus-visible {
+  outline: 3px solid rgba(194, 145, 32, 0.25);
+  outline-offset: 0.3rem;
+  border-radius: 0.4rem;
+}
+
+.lab-lesson-content {
+  padding-top: 0.15rem;
 }
 
 .lab-card p {
