@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "policestep-shell-v6";
+const CACHE_NAME = "policestep-shell-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
