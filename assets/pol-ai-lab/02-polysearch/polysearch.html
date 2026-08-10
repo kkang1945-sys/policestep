@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>폴리서치 - 오프라인 업무자료 검색기</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e40af;
+            --background: #f1f5f9;
+            --surface: rgba(255, 255, 255, 0.85);
+            --surface-border: rgba(255, 255, 255, 0.5);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+            --highlight: #fef08a;
+            --highlight-text: #854d0e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: var(--background);
+            background-image: radial-gradient(at 0% 0%, hsla(217,100%,76%,0.15) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, hsla(217,100%,76%,0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(30, 58, 138, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Glassmorphism Card */
+        .card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            padding: 1.8rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-light);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .file-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .btn-delete {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid #cbd5e1;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-color: var(--danger-bg);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.02);
+            border-radius: 12px;
+            font-size: 0.95rem;
+        }
+
+        /* Search Input */
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1.2rem 1.5rem 1.2rem 3rem;
+            font-size: 1.1rem;
+            border: 2px solid rgba(0,0,0,0.08);
+            border-radius: 16px;
+            background: white;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            color: var(--text-main);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            font-size: 1.2rem;
+        }
+
+        .search-status {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.8rem;
+            padding-left: 0.5rem;
+            font-weight: 500;
+        }
+
+        /* Search Results */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .result-item {
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            transition: transform 0.2s ease;
+        }
+
+        .result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+        }
+
+        .result-header {
+            background: rgba(241, 245, 249, 0.7);
+            padding: 0.8rem 1.2rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .result-body {
+            padding: 1.2rem;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            line-height: 1.8;
+            font-family: inherit;
+        }
+
+        .context-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.15rem 0;
+            color: var(--text-muted);
+        }
+
+        .match-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.15rem 0;
+            color: var(--text-main);
+            font-weight: 500;
+            background: rgba(254, 240, 138, 0.15);
+            border-radius: 4px;
+        }
+
+        .line-num {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            min-width: 35px;
+            text-align: right;
+            user-select: none;
+            padding-top: 0.15rem;
+        }
+
+        .line-text {
+            word-break: break-all;
+            flex: 1;
+        }
+
+        mark {
+            background-color: var(--highlight);
+            color: var(--highlight-text);
+            padding: 0.1em 0.3em;
+            border-radius: 4px;
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                padding: 1.2rem;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            .btn {
+                width: 100%;
+            }
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.8rem;
+            }
+            .btn-delete {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>폴리서치</h1>
+        <p>CSV · TXT · MD 파일을 내 PC에서 빠르고 안전하게 검색합니다</p>
+    </header>
+
+    <div class="container">
+        <!-- File Management Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📁 업무자료 관리</div>
+                <div class="controls">
+                    <label for="fileInput" class="btn btn-primary">
+                        + 파일 추가
+                    </label>
+                    <input type="file" id="fileInput" accept=".csv,.txt,.md,.hwpx" multiple>
+                    
+                    <button id="btnDeleteAll" class="btn btn-danger">
+                        전체 삭제
+                    </button>
+                </div>
+            </div>
+            
+            <div id="fileList" class="file-list">
+                <div class="empty-state">업로드된 파일이 없습니다.</div>
+            </div>
+        </div>
+
+        <!-- Search Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🔍 자료 검색</div>
+            </div>
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔎</span>
+                <input type="search" id="searchInput" class="search-input" placeholder="검색어를 입력하세요 (예: 경찰, 보고서)" autocomplete="off">
+            </div>
+            <div id="searchStatus" class="search-status">검색어를 입력하시면 즉시 결과를 보여드립니다.</div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card" id="resultsCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-title">📑 검색 결과</div>
+            </div>
+            <div id="resultsContainer" class="results-container">
+                <!-- Results will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        "use strict";
+
+        // Constants & Global Variables
+        const DB_NAME = "PolySearchDatabase";
+        const STORE_NAME = "documents";
+        const DB_VERSION = 1;
+        const SUPPORTED_EXTENSIONS = ["csv", "txt", "md", "hwpx"];
+        const MAX_SEARCH_RESULTS = 100;
+        
+        let db = null;
+        let documentList = [];
+        let searchTimeout = null;
+
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileListEl = document.getElementById('fileList');
+        const btnDeleteAll = document.getElementById('btnDeleteAll');
+        const searchInput = document.getElementById('searchInput');
+        const searchStatus = document.getElementById('searchStatus');
+        const resultsCard = document.getElementById('resultsCard');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        // Initialize App
+        async function init() {
+            try {
+                await initDB();
+                await loadDocuments();
+                renderFileList();
+            } catch (error) {
+                console.error("Initialization Error:", error);
+                alert("브라우저 저장소를 초기화할 수 없습니다.\\n안전한 모드나 프라이빗 브라우징에서는 지원되지 않을 수 있습니다.");
+            }
+        }
+
+        // Database Operations
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error("이 브라우저는 IndexedDB를 지원하지 않습니다."));
+                    return;
+                }
+
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: "id" });
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve();
+                };
+
+                request.onerror = (e) => reject(request.error);
+            });
+        }
+
+        function loadDocuments() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    resolve(request.result || []);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function saveDocument(doc) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                store.put(doc);
+
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        function deleteDocument(id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                tx.objectStore(STORE_NAME).delete(id);
+
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        function clearAllDocuments() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                tx.objectStore(STORE_NAME).clear();
+
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // File Processing
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            searchStatus.textContent = "파일을 읽어들이는 중입니다...";
+
+            for (const file of files) {
+                const ext = getExtension(file.name);
+                
+                if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+                    alert(`지원하지 않는 파일 형식입니다: ${file.name}\n(csv, txt, md, hwpx 파일만 지원합니다.)`);
+                    continue;
+                }
+
+                try {
+                    let text = "";
+                    if (ext === "hwpx") {
+                        if (typeof JSZip === 'undefined') {
+                            throw new Error("오프라인 상태이거나 JSZip 라이브러리를 불러올 수 없습니다. 인터넷 연결을 확인해주세요.");
+                        }
+                        text = await parseHwpx(file);
+                    } else {
+                        text = await parseFileSafely(file);
+                    }
+                    
+                    const doc = {
+                        id: Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+                        name: file.name,
+                        ext: ext,
+                        size: file.size,
+                        lines: text.split(/\r?\n/), // Pre-split lines for fast searching
+                        uploadedAt: new Date().toISOString()
+                    };
+
+                    await saveDocument(doc);
+                    documentList.push(doc);
+                } catch (err) {
+                    console.error("File processing error:", err);
+                    alert(`${file.name} 파일을 읽는 중 오류가 발생했습니다.\n상세: ${err.message}`);
+                }
+            }
+
+            fileInput.value = ""; // Reset input
+            renderFileList();
+            searchStatus.textContent = "파일 저장이 완료되었습니다.";
+            performSearch(); // Refresh search if query exists
+        });
+
+        async function parseFileSafely(file) {
+            const buffer = await file.arrayBuffer();
+            
+            // Try UTF-8 first, failing strictly on invalid characters
+            let text = "";
+            let utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+            try {
+                text = utf8Decoder.decode(buffer);
+                return text;
+            } catch (err) {
+                // If it fails (fatal: true throws an error), try EUC-KR (CP949)
+                let eucKrDecoder = new TextDecoder('euc-kr');
+                text = eucKrDecoder.decode(buffer);
+                return text;
+            }
+        }
+
+        async function parseHwpx(file) {
+            try {
+                const zip = await JSZip.loadAsync(file);
+                let fullText = "";
+                
+                // HWPX stores content in Contents/section*.xml
+                const xmlFiles = Object.keys(zip.files).filter(name => name.startsWith("Contents/section") && name.endsWith(".xml"));
+                
+                if (xmlFiles.length === 0) {
+                    throw new Error("유효한 HWPX 파일 구조가 아닙니다.");
+                }
+
+                const parser = new DOMParser();
+                
+                for (const xmlPath of xmlFiles) {
+                    const xmlData = await zip.file(xmlPath).async("string");
+                    const xmlDoc = parser.parseFromString(xmlData, "application/xml");
+                    
+                    // Extract text from <hp:t> tags
+                    const tTags = xmlDoc.getElementsByTagName("hp:t");
+                    for (let i = 0; i < tTags.length; i++) {
+                        if (tTags[i].textContent) {
+                            fullText += tTags[i].textContent + "\n";
+                        }
+                    }
+                }
+                
+                return fullText;
+            } catch (err) {
+                console.error("HWPX Parsing error:", err);
+                throw new Error("HWPX 파일 압축 해제 및 텍스트 추출 실패");
+            }
+        }
+
+        // UI Rendering
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getExtension(filename) {
+            const parts = filename.split('.');
+            return parts.length > 1 ? parts.pop().toLowerCase() : '';
+        }
+
+        function escapeHtml(unsafe) {
+            return (unsafe || "").toString()
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        function renderFileList() {
+            if (documentList.length === 0) {
+                fileListEl.innerHTML = `<div class="empty-state">현재 저장된 업무자료가 없습니다. 파일을 추가해주세요.</div>`;
+                return;
+            }
+
+            fileListEl.innerHTML = "";
+            documentList.forEach(doc => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <div class="file-info">
+                        <div class="file-name">📄 ${escapeHtml(doc.name)}</div>
+                        <div class="file-meta">${doc.ext.toUpperCase()} · ${formatBytes(doc.size)} · ${doc.lines.length.toLocaleString()} 줄</div>
+                    </div>
+                    <button class="btn-delete" data-id="${doc.id}">삭제</button>
+                `;
+                fileListEl.appendChild(item);
+            });
+
+            // Bind delete events
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    await deleteDocument(id);
+                    documentList = documentList.filter(d => d.id !== id);
+                    renderFileList();
+                    performSearch();
+                });
+            });
+        }
+
+        btnDeleteAll.addEventListener('click', async () => {
+            if (documentList.length === 0) {
+                alert("삭제할 파일이 없습니다.");
+                return;
+            }
+            if (confirm("저장된 모든 업무자료를 삭제하시겠습니까?")) {
+                await clearAllDocuments();
+                documentList = [];
+                renderFileList();
+                performSearch();
+            }
+        });
+
+        // Search Logic
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 200); // Debounce
+        });
+
+        function performSearch() {
+            const query = searchInput.value.trim();
+
+            if (!query) {
+                resultsCard.style.display = 'none';
+                searchStatus.textContent = "검색어를 입력하시면 즉시 결과를 보여드립니다.";
+                return;
+            }
+
+            if (documentList.length === 0) {
+                resultsCard.style.display = 'none';
+                searchStatus.textContent = "파일을 먼저 추가해주세요.";
+                return;
+            }
+
+            resultsCard.style.display = 'block';
+            const lowerQuery = query.toLowerCase();
+            let matches = [];
+
+            // Perform Search across all documents
+            for (const doc of documentList) {
+                const lines = doc.lines;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].toLowerCase().includes(lowerQuery)) {
+                        
+                        // Extract context (2 lines before, 2 lines after)
+                        const startIdx = Math.max(0, i - 2);
+                        const endIdx = Math.min(lines.length - 1, i + 2);
+                        let contextBlock = [];
+
+                        for (let j = startIdx; j <= endIdx; j++) {
+                            contextBlock.push({
+                                lineNum: j + 1,
+                                text: lines[j],
+                                isMatch: j === i
+                            });
+                        }
+
+                        matches.push({
+                            fileName: doc.name,
+                            matchLineNum: i + 1,
+                            context: contextBlock
+                        });
+
+                        // Strict limit to prevent UI freezing
+                        if (matches.length >= MAX_SEARCH_RESULTS) {
+                            break;
+                        }
+                    }
+                }
+                if (matches.length >= MAX_SEARCH_RESULTS) break;
+            }
+
+            renderSearchResults(matches, query);
+        }
+
+        function highlightText(text, keyword) {
+            const safeText = escapeHtml(text);
+            const escapedKeyword = keyword.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+            const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+            return safeText.replace(regex, '<mark>$1</mark>');
+        }
+
+        function renderSearchResults(matches, query) {
+            if (matches.length === 0) {
+                resultsContainer.innerHTML = `<div class="empty-state">"${escapeHtml(query)}"에 대한 검색 결과가 없습니다.</div>`;
+                searchStatus.innerHTML = `<strong>0건</strong>의 결과가 발견되었습니다.`;
+                return;
+            }
+
+            let resultsHtml = "";
+            matches.forEach(match => {
+                let bodyHtml = "";
+                match.context.forEach(ctx => {
+                    if (ctx.isMatch) {
+                        bodyHtml += `
+                            <div class="match-line">
+                                <div class="line-num">${ctx.lineNum}</div>
+                                <div class="line-text">${highlightText(ctx.text, query)}</div>
+                            </div>
+                        `;
+                    } else {
+                        bodyHtml += `
+                            <div class="context-line">
+                                <div class="line-num">${ctx.lineNum}</div>
+                                <div class="line-text">${escapeHtml(ctx.text)}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                resultsHtml += `
+                    <div class="result-item">
+                        <div class="result-header">
+                            📄 ${escapeHtml(match.fileName)} <span style="color:var(--text-muted); font-weight:normal;">(Line ${match.matchLineNum})</span>
+                        </div>
+                        <div class="result-body">
+                            ${bodyHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsContainer.innerHTML = resultsHtml;
+
+            let statusText = `총 <strong>${matches.length}건</strong>의 결과가 발견되었습니다.`;
+            if (matches.length >= MAX_SEARCH_RESULTS) {
+                statusText += ` <span style="color:var(--danger)">(성능을 위해 상위 ${MAX_SEARCH_RESULTS}건만 표시됨)</span>`;
+            }
+            searchStatus.innerHTML = statusText;
+        }
+
+        // Boot
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
