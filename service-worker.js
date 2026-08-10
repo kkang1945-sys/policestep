@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "policestep-shell-v12";
+const CACHE_NAME = "policestep-shell-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,9 @@ const APP_SHELL = [
   "./app.js",
   "./manifest.webmanifest",
   "./assets/police-logo.png",
+  "./assets/pol-ai-lab/02-polysearch/polysearch.html",
+  "./assets/pol-ai-lab/02-polysearch/guide-pc.pdf",
+  "./assets/pol-ai-lab/02-polysearch/guide-mobile.pdf",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];
