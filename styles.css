@@ -89,6 +89,7 @@ button {
 .brand-name {
   margin: 0.65rem 0 1.65rem;
   color: var(--navy-900);
+  font-family: '윤고래체', 'YoonGorae', "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: clamp(2rem, 8vw, 3.15rem);
   font-weight: 900;
   letter-spacing: -0.06em;
