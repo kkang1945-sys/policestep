@@ -721,3 +721,16 @@ noscript {
   flex-direction: column;
   gap: 0.25rem;
 }
+
+.law-panel {
+  margin-top: 0.75rem;
+  background: linear-gradient(145deg, #f2fafe 0%, #f7fbfc 72%);
+  border: 1px solid #c2e2f3;
+}
+.law-panel .index-kicker {
+  color: #0e6494;
+}
+.law-panel .index-count {
+  color: #0b5077;
+  background: #d4effa;
+}
