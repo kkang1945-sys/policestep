@@ -165,16 +165,38 @@
       summary.appendChild(count);
       details.appendChild(summary);
 
-      var items = document.createElement("div");
-      items.className = "index-items";
+      var itemsContainer = document.createElement("div");
+      itemsContainer.className = "index-items";
+      
+      var tree = {};
+      var directItems = [];
+
       (Array.isArray(group.items) ? group.items : []).forEach(function (item) {
         if (!item || typeof item.title !== "string") return;
+        var subcat = item.subcategory || "";
+        if (!subcat) {
+          directItems.push(item);
+        } else {
+          var parts = subcat.split(">").map(function(s) { return s.trim(); });
+          var chapter = parts[0] || "";
+          var section = parts[1] || "";
+          
+          if (!tree[chapter]) tree[chapter] = { direct: [], sections: {} };
+          
+          if (section) {
+            if (!tree[chapter].sections[section]) tree[chapter].sections[section] = [];
+            tree[chapter].sections[section].push(item);
+          } else {
+            tree[chapter].direct.push(item);
+          }
+        }
+      });
+
+      function createButton(item) {
         var button = document.createElement("button");
         button.type = "button";
         button.className = "index-item";
-        button.textContent = item.subcategory
-          ? item.title + " · " + item.subcategory
-          : item.title;
+        button.textContent = item.title;
         button.addEventListener("click", function () {
           var cat = group.category || "기타";
           input.value = "[" + cat + "] " + item.title + "에 대해 알려줘";
@@ -183,9 +205,50 @@
           input.setSelectionRange(input.value.length, input.value.length);
           window.scrollTo({ top: 0, behavior: "smooth" });
         });
-        items.appendChild(button);
+        return button;
+      }
+
+      Object.keys(tree).forEach(function(chapter) {
+         var chapterDetails = document.createElement("details");
+         chapterDetails.className = "index-chapter";
+         var chapterSummary = document.createElement("summary");
+         chapterSummary.textContent = chapter;
+         chapterSummary.className = "index-chapter-summary";
+         chapterDetails.appendChild(chapterSummary);
+         
+         var chapterContent = document.createElement("div");
+         chapterContent.className = "index-chapter-content";
+
+         Object.keys(tree[chapter].sections).forEach(function(section) {
+           var sectionDetails = document.createElement("details");
+           sectionDetails.className = "index-section";
+           var sectionSummary = document.createElement("summary");
+           sectionSummary.textContent = section;
+           sectionSummary.className = "index-section-summary";
+           sectionDetails.appendChild(sectionSummary);
+           
+           var sectionContent = document.createElement("div");
+           sectionContent.className = "index-section-content";
+           tree[chapter].sections[section].forEach(function(item) {
+             sectionContent.appendChild(createButton(item));
+           });
+           sectionDetails.appendChild(sectionContent);
+           chapterContent.appendChild(sectionDetails);
+         });
+
+         tree[chapter].direct.forEach(function(item) {
+            chapterContent.appendChild(createButton(item));
+         });
+
+         chapterDetails.appendChild(chapterContent);
+         itemsContainer.appendChild(chapterDetails);
       });
-      details.appendChild(items);
+
+      directItems.forEach(function(item) {
+         itemsContainer.appendChild(createButton(item));
+      });
+
+      details.appendChild(itemsContainer);
       indexList.appendChild(details);
     });
 
