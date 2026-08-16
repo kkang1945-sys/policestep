@@ -13,6 +13,8 @@
   var indexPanel = document.getElementById("index-panel");
   var indexList = document.getElementById("index-list");
   var indexCount = document.getElementById("index-count");
+  var lawList = document.getElementById("law-list");
+  var lawCount = document.getElementById("law-count");
   var activeController = null;
 
   function setStatus(message, isError) {
@@ -138,121 +140,168 @@
 
   function renderIndex(data) {
     var groups = data && Array.isArray(data.groups) ? data.groups : [];
-    var total = Number(data && data.total) || 0;
     while (indexList.firstChild) indexList.removeChild(indexList.firstChild);
+    if (lawList) while (lawList.firstChild) lawList.removeChild(lawList.firstChild);
 
-    if (!groups.length) {
+    var standardGroups = [];
+    var lawGroup = null;
+
+    groups.forEach(function(g) {
+      if (String(g.category).trim() === "지역경찰 운영지침") {
+        lawGroup = g;
+      } else {
+        standardGroups.push(g);
+      }
+    });
+
+    // Render Standard Groups
+    if (!standardGroups.length) {
       var empty = document.createElement("p");
       empty.className = "index-empty";
       empty.textContent = "현재 공개된 업무 목록이 없습니다.";
       indexList.appendChild(empty);
       indexCount.textContent = "0개 업무";
-      return;
+    } else {
+      var standardTotal = 0;
+      standardGroups.forEach(function (group) {
+        standardTotal += Number(group.count) || 0;
+        var details = document.createElement("details");
+        details.className = "index-group";
+
+        var summary = document.createElement("summary");
+        var category = document.createElement("span");
+        category.className = "index-category";
+        category.textContent = String(group.category || "기타");
+        var count = document.createElement("span");
+        count.className = "index-group-count";
+        count.textContent = String(Number(group.count) || 0) + "개";
+        summary.appendChild(category);
+        summary.appendChild(count);
+        details.appendChild(summary);
+
+        var items = document.createElement("div");
+        items.className = "index-items";
+        (Array.isArray(group.items) ? group.items : []).forEach(function (item) {
+          if (!item || typeof item.title !== "string") return;
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "index-item";
+          button.textContent = item.subcategory
+            ? item.title + " · " + item.subcategory
+            : item.title;
+          button.addEventListener("click", function () {
+            var cat = group.category || "기타";
+            input.value = "[" + cat + "] " + item.title + "에 대해 알려줘";
+            setStatus("업무명이 입력되었습니다. 검색 버튼을 눌러 주세요.", false);
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          });
+          items.appendChild(button);
+        });
+        details.appendChild(items);
+        indexList.appendChild(details);
+      });
+      indexCount.textContent = standardTotal + "개 업무";
     }
 
-    groups.forEach(function (group) {
-      var details = document.createElement("details");
-      details.className = "index-group";
+    // Render Law Group
+    if (lawList) {
+      if (!lawGroup || !lawGroup.items || !lawGroup.items.length) {
+        var emptyLaw = document.createElement("p");
+        emptyLaw.className = "index-empty";
+        emptyLaw.textContent = "현재 공개된 지침이 없습니다.";
+        lawList.appendChild(emptyLaw);
+        if (lawCount) lawCount.textContent = "0개 조문";
+      } else {
+        if (lawCount) lawCount.textContent = (Number(lawGroup.count) || 0) + "개 조문";
+        
+        var itemsContainer = document.createElement("div");
+        itemsContainer.className = "index-items";
+        
+        var tree = {};
+        var directItems = [];
 
-      var summary = document.createElement("summary");
-      var category = document.createElement("span");
-      category.className = "index-category";
-      category.textContent = String(group.category || "기타");
-      var count = document.createElement("span");
-      count.className = "index-group-count";
-      count.textContent = String(Number(group.count) || 0) + "개";
-      summary.appendChild(category);
-      summary.appendChild(count);
-      details.appendChild(summary);
-
-      var itemsContainer = document.createElement("div");
-      itemsContainer.className = "index-items";
-      
-      var tree = {};
-      var directItems = [];
-
-      (Array.isArray(group.items) ? group.items : []).forEach(function (item) {
-        if (!item || typeof item.title !== "string") return;
-        var subcat = item.subcategory || "";
-        if (!subcat) {
-          directItems.push(item);
-        } else {
-          var parts = subcat.split(">").map(function(s) { return s.trim(); });
-          var chapter = parts[0] || "";
-          var section = parts[1] || "";
-          
-          if (!tree[chapter]) tree[chapter] = { direct: [], sections: {} };
-          
-          if (section) {
-            if (!tree[chapter].sections[section]) tree[chapter].sections[section] = [];
-            tree[chapter].sections[section].push(item);
+        (Array.isArray(lawGroup.items) ? lawGroup.items : []).forEach(function (item) {
+          if (!item || typeof item.title !== "string") return;
+          var subcat = item.subcategory || "";
+          if (!subcat) {
+            directItems.push(item);
           } else {
-            tree[chapter].direct.push(item);
+            var parts = subcat.split(">").map(function(s) { return s.trim(); });
+            var chapter = parts[0] || "";
+            var section = parts[1] || "";
+            
+            if (!tree[chapter]) tree[chapter] = { direct: [], sections: {} };
+            
+            if (section) {
+              if (!tree[chapter].sections[section]) tree[chapter].sections[section] = [];
+              tree[chapter].sections[section].push(item);
+            } else {
+              tree[chapter].direct.push(item);
+            }
           }
-        }
-      });
-
-      function createButton(item) {
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "index-item";
-        button.textContent = item.title;
-        button.addEventListener("click", function () {
-          var cat = group.category || "기타";
-          input.value = "[" + cat + "] " + item.title + "에 대해 알려줘";
-          setStatus("업무명이 입력되었습니다. 검색 버튼을 눌러 주세요.", false);
-          input.focus();
-          input.setSelectionRange(input.value.length, input.value.length);
-          window.scrollTo({ top: 0, behavior: "smooth" });
         });
-        return button;
-      }
 
-      Object.keys(tree).forEach(function(chapter) {
-         var chapterDetails = document.createElement("details");
-         chapterDetails.className = "index-chapter";
-         var chapterSummary = document.createElement("summary");
-         chapterSummary.textContent = chapter;
-         chapterSummary.className = "index-chapter-summary";
-         chapterDetails.appendChild(chapterSummary);
-         
-         var chapterContent = document.createElement("div");
-         chapterContent.className = "index-chapter-content";
+        function createButton(item) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "index-item";
+          button.textContent = item.title;
+          button.addEventListener("click", function () {
+            var cat = lawGroup.category || "기타";
+            input.value = "[" + cat + "] " + item.title + "에 대해 알려줘";
+            setStatus("업무명이 입력되었습니다. 검색 버튼을 눌러 주세요.", false);
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          });
+          return button;
+        }
 
-         Object.keys(tree[chapter].sections).forEach(function(section) {
-           var sectionDetails = document.createElement("details");
-           sectionDetails.className = "index-section";
-           var sectionSummary = document.createElement("summary");
-           sectionSummary.textContent = section;
-           sectionSummary.className = "index-section-summary";
-           sectionDetails.appendChild(sectionSummary);
+        Object.keys(tree).forEach(function(chapter) {
+           var chapterDetails = document.createElement("details");
+           chapterDetails.className = "index-chapter";
+           var chapterSummary = document.createElement("summary");
+           chapterSummary.textContent = chapter;
+           chapterSummary.className = "index-chapter-summary";
+           chapterDetails.appendChild(chapterSummary);
            
-           var sectionContent = document.createElement("div");
-           sectionContent.className = "index-section-content";
-           tree[chapter].sections[section].forEach(function(item) {
-             sectionContent.appendChild(createButton(item));
+           var chapterContent = document.createElement("div");
+           chapterContent.className = "index-chapter-content";
+
+           Object.keys(tree[chapter].sections).forEach(function(section) {
+             var sectionDetails = document.createElement("details");
+             sectionDetails.className = "index-section";
+             var sectionSummary = document.createElement("summary");
+             sectionSummary.textContent = section;
+             sectionSummary.className = "index-section-summary";
+             sectionDetails.appendChild(sectionSummary);
+             
+             var sectionContent = document.createElement("div");
+             sectionContent.className = "index-section-content";
+             tree[chapter].sections[section].forEach(function(item) {
+               sectionContent.appendChild(createButton(item));
+             });
+             sectionDetails.appendChild(sectionContent);
+             chapterContent.appendChild(sectionDetails);
            });
-           sectionDetails.appendChild(sectionContent);
-           chapterContent.appendChild(sectionDetails);
-         });
 
-         tree[chapter].direct.forEach(function(item) {
-            chapterContent.appendChild(createButton(item));
-         });
+           tree[chapter].direct.forEach(function(item) {
+              chapterContent.appendChild(createButton(item));
+           });
 
-         chapterDetails.appendChild(chapterContent);
-         itemsContainer.appendChild(chapterDetails);
-      });
+           chapterDetails.appendChild(chapterContent);
+           itemsContainer.appendChild(chapterDetails);
+        });
 
-      directItems.forEach(function(item) {
-         itemsContainer.appendChild(createButton(item));
-      });
+        directItems.forEach(function(item) {
+           itemsContainer.appendChild(createButton(item));
+        });
 
-      details.appendChild(itemsContainer);
-      indexList.appendChild(details);
-    });
-
-    indexCount.textContent = total + "개 업무";
+        lawList.appendChild(itemsContainer);
+      }
+    }
   }
 
   function renderIndexError(error) {
