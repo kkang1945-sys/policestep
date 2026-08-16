@@ -176,7 +176,8 @@
           ? item.title + " · " + item.subcategory
           : item.title;
         button.addEventListener("click", function () {
-          input.value = item.title + "에 대해 알려줘";
+          var cat = group.category || "기타";
+          input.value = "[" + cat + "] " + item.title + "에 대해 알려줘";
           setStatus("업무명이 입력되었습니다. 검색 버튼을 눌러 주세요.", false);
           input.focus();
           input.setSelectionRange(input.value.length, input.value.length);
