@@ -15,6 +15,16 @@
   var indexCount = document.getElementById("index-count");
   var lawList = document.getElementById("law-list");
   var lawCount = document.getElementById("law-count");
+  var cctvDisclosure = document.getElementById("cctv-disclosure");
+  var cctvForm = document.getElementById("cctv-search-form");
+  var cctvInput = document.getElementById("cctv-address");
+  var cctvSearchButton = document.getElementById("cctv-search-button");
+  var cctvStatus = document.getElementById("cctv-status");
+  var cctvAddressResults = document.getElementById("cctv-address-results");
+  var cctvNearby = document.getElementById("cctv-nearby");
+  var cctvSelectedAddress = document.getElementById("cctv-selected-address");
+  var cctvDataTime = document.getElementById("cctv-data-time");
+  var cctvList = document.getElementById("cctv-list");
   var activeController = null;
 
   function setStatus(message, isError) {
@@ -90,6 +100,13 @@
       GEMINI_AUTH: "AI 연결 설정을 확인해야 합니다. 관리자에게 알려 주세요.",
       GEMINI_QUOTA: "AI 사용량이 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
       GEMINI_ERROR: "AI 답변을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      CCTV_CONFIG: "CCTV·도로명주소 연결 설정이 아직 완료되지 않았습니다.",
+      ADDRESS_INVALID: "도로명주소만 입력해 주세요. 개인정보와 상세주소는 사용할 수 없습니다.",
+      ADDRESS_NOT_FOUND: "대전광역시 도로명주소를 찾지 못했습니다.",
+      ADDRESS_ERROR: "도로명주소를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      CCTV_API: "대전 CCTV 공공데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      CCTV_DATA: "검색 가능한 CCTV 위치정보가 없습니다.",
+      CCTV_RATE_LIMIT: "CCTV 검색 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
       INTERNAL_ERROR: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     };
     return messages[errorCode] || fallback || messages.INTERNAL_ERROR;
@@ -138,6 +155,161 @@
     }
   }
 
+  function clearElement(element) {
+    while (element.firstChild) element.removeChild(element.firstChild);
+  }
+
+  function setCctvStatus(message, isError) {
+    cctvStatus.textContent = message || "";
+    cctvStatus.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function setCctvLoading(isLoading, label) {
+    cctvInput.disabled = isLoading;
+    cctvSearchButton.disabled = isLoading;
+    cctvSearchButton.textContent = isLoading ? (label || "확인 중…") : "주소 검색";
+  }
+
+  function cctvErrorMessage(error) {
+    if (error && error.name === "AbortError") {
+      return "응답 시간이 길어졌습니다. 다시 시도해 주세요.";
+    }
+    if (error && error.code === "INVALID_REQUEST") {
+      return "CCTV 서버가 이전 버전입니다. Apps Script의 CCTV 기능을 새 버전으로 배포해 주세요.";
+    }
+    return userMessageFor(error && error.code, error && error.message);
+  }
+
+  function resetCctvResults(clearInput) {
+    clearElement(cctvAddressResults);
+    clearElement(cctvList);
+    cctvNearby.hidden = true;
+    cctvSelectedAddress.textContent = "";
+    cctvDataTime.textContent = "";
+    setCctvStatus("", false);
+    if (clearInput) cctvInput.value = "";
+  }
+
+  function formatDistance(meters) {
+    var value = Number(meters);
+    if (!Number.isFinite(value)) return "거리 미상";
+    if (value < 1000) return Math.round(value) + "m";
+    return (value / 1000).toFixed(value < 10000 ? 1 : 0) + "km";
+  }
+
+  function mapLinkFor(item) {
+    var name = encodeURIComponent("공공 CCTV " + String(item.address || "위치"));
+    return "https://map.kakao.com/link/map/" + name + "," + Number(item.latitude) + "," + Number(item.longitude);
+  }
+
+  function renderNearbyCctv(data, selectedAddress) {
+    var items = data && Array.isArray(data.items) ? data.items : [];
+    clearElement(cctvList);
+    cctvSelectedAddress.textContent = selectedAddress;
+    cctvDataTime.textContent = data && data.dataDate ? "조회 " + data.dataDate : "공공데이터 기준";
+
+    items.forEach(function (item, index) {
+      var row = document.createElement("li");
+      row.className = "cctv-item";
+
+      var rank = document.createElement("span");
+      rank.className = "cctv-rank";
+      rank.textContent = String(index + 1);
+
+      var main = document.createElement("div");
+      main.className = "cctv-item-main";
+      var address = document.createElement("strong");
+      address.textContent = String(item.address || "주소 정보 없음");
+      var meta = document.createElement("span");
+      meta.textContent = [item.type, item.agency].filter(Boolean).join(" · ") || "공공 CCTV";
+      main.appendChild(address);
+      main.appendChild(meta);
+
+      var distance = document.createElement("span");
+      distance.className = "cctv-distance";
+      distance.textContent = formatDistance(item.distanceMeters);
+
+      var mapLink = document.createElement("a");
+      mapLink.className = "cctv-map-link";
+      mapLink.href = mapLinkFor(item);
+      mapLink.target = "_blank";
+      mapLink.rel = "noopener noreferrer";
+      mapLink.textContent = "지도에서 CCTV 위치 보기";
+
+      row.appendChild(rank);
+      row.appendChild(main);
+      row.appendChild(distance);
+      row.appendChild(mapLink);
+      cctvList.appendChild(row);
+    });
+
+    cctvNearby.hidden = items.length === 0;
+  }
+
+  async function selectCctvAddress(address) {
+    clearElement(cctvAddressResults);
+    cctvNearby.hidden = true;
+    setCctvLoading(true, "CCTV 찾는 중…");
+    setCctvStatus("공개 CCTV 위치와 거리를 계산하고 있습니다…", false);
+
+    try {
+      var data = await requestJson({
+        action: "cctvNearby",
+        address: {
+          roadAddress: address.roadAddress,
+          admCd: address.admCd,
+          rnMgtSn: address.rnMgtSn,
+          udrtYn: address.udrtYn,
+          buldMnnm: address.buldMnnm,
+          buldSlno: address.buldSlno
+        }
+      }, 45000);
+      renderNearbyCctv(data, address.roadAddress);
+      setCctvStatus(data.items && data.items.length
+        ? "가까운 CCTV " + data.items.length + "곳을 거리순으로 표시했습니다."
+        : "가까운 CCTV를 찾지 못했습니다.", !(data.items && data.items.length));
+    } catch (error) {
+      cctvNearby.hidden = true;
+      setCctvStatus(cctvErrorMessage(error), true);
+    } finally {
+      setCctvLoading(false);
+    }
+  }
+
+  function renderCctvAddresses(data) {
+    var items = data && Array.isArray(data.items) ? data.items : [];
+    clearElement(cctvAddressResults);
+    items.forEach(function (address) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "cctv-address-option";
+      button.textContent = address.roadAddress;
+      button.addEventListener("click", function () { selectCctvAddress(address); });
+      cctvAddressResults.appendChild(button);
+    });
+    setCctvStatus(items.length
+      ? "공식 도로명주소를 선택하면 가까운 CCTV를 찾습니다."
+      : "대전광역시 도로명주소를 찾지 못했습니다.", items.length === 0);
+  }
+
+  function validateRoadAddress(value) {
+    var text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text) return { ok: false, message: "도로명주소를 입력해 주세요." };
+    if (text.length > 80) return { ok: false, message: "주소는 80자 이내로 입력해 주세요." };
+    if (/\b\d{6}\s*-?\s*[1-8]\d{6}\b|\b(?:01[016789]|0[2-6][1-5]?)\s*-?\s*\d{3,4}\s*-?\s*\d{4}\b|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) {
+      return { ok: false, message: "개인정보가 포함되어 검색하지 않았습니다. 도로명주소만 입력해 주세요." };
+    }
+    if (/(?:이름|성명|신고자|피해자|피의자|용의자|민원인|전화|연락처|사건\s*번호)\s*[:：]?/i.test(text)) {
+      return { ok: false, message: "사람·사건 정보는 입력할 수 없습니다. 도로명주소만 입력해 주세요." };
+    }
+    if (/\d+\s*동\s*\d+\s*호|\d+\s*(?:층|호)\b|(?:아파트|오피스텔|빌라)\s*\d*\s*동/i.test(text)) {
+      return { ok: false, message: "동·층·호수 등 상세주소는 입력할 수 없습니다." };
+    }
+    if (!/^[0-9A-Za-z가-힣\s\-·]+$/.test(text)) {
+      return { ok: false, message: "도로명주소에 필요한 글자만 입력해 주세요." };
+    }
+    return { ok: true, value: text };
+  }
   function renderIndex(data) {
     var groups = data && Array.isArray(data.groups) ? data.groups : [];
     while (indexList.firstChild) indexList.removeChild(indexList.firstChild);
@@ -417,6 +589,34 @@
     input.focus();
   });
 
+  if (cctvForm && cctvDisclosure) {
+    cctvForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      resetCctvResults(false);
+
+      var validation = validateRoadAddress(cctvInput.value);
+      if (!validation.ok) {
+        setCctvStatus(validation.message, true);
+        cctvInput.focus();
+        return;
+      }
+
+      setCctvLoading(true, "검색 중…");
+      setCctvStatus("대전광역시 공식 도로명주소를 확인하고 있습니다…", false);
+      try {
+        var data = await requestJson({ action: "cctvAddressSearch", keyword: validation.value }, 20000);
+        renderCctvAddresses(data);
+      } catch (error) {
+        setCctvStatus(cctvErrorMessage(error), true);
+      } finally {
+        setCctvLoading(false);
+      }
+    });
+
+    cctvDisclosure.addEventListener("toggle", function () {
+      if (!cctvDisclosure.open) resetCctvResults(true);
+    });
+  }
   loadIndex();
 
   if ("serviceWorker" in navigator) {

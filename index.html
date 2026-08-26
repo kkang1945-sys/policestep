@@ -171,6 +171,57 @@
           </details>
         </section>
 
+        <section class="cctv-panel" id="pol-cctv" aria-labelledby="cctv-title">
+          <details class="cctv-disclosure" id="cctv-disclosure">
+            <summary class="cctv-heading">
+              <div>
+                <span class="cctv-kicker">주변 CCTV 찾기</span>
+                <h2 id="cctv-title">폴 CCTV (대전청 한정)</h2>
+              </div>
+              <span class="cctv-count">대전 5개 구</span>
+            </summary>
+            <div class="cctv-content">
+              <p class="cctv-intro">대전광역시의 도로명주소를 검색해 가까운 공공 CCTV 위치를 확인합니다. 건물명·동·층·호수와 사람 정보는 입력하지 마세요.</p>
+
+              <form class="cctv-search-form" id="cctv-search-form" novalidate>
+                <label for="cctv-address">도로명주소</label>
+                <div class="cctv-search-row">
+                  <input
+                    id="cctv-address"
+                    name="cctv-address"
+                    type="search"
+                    inputmode="search"
+                    enterkeyhint="search"
+                    autocomplete="off"
+                    maxlength="80"
+                    placeholder="예: 대전광역시 중구 중앙로 101"
+                    aria-describedby="cctv-privacy cctv-status"
+                  />
+                  <button id="cctv-search-button" type="submit">주소 검색</button>
+                </div>
+              </form>
+
+              <p class="cctv-privacy" id="cctv-privacy">GPS를 사용하지 않으며 입력값·검색기록·결과를 저장하거나 사용자 정보와 연결하지 않습니다.</p>
+              <p class="cctv-status" id="cctv-status" role="status" aria-live="polite"></p>
+              <div class="cctv-address-results" id="cctv-address-results" aria-label="도로명주소 검색 결과"></div>
+
+              <section class="cctv-nearby" id="cctv-nearby" aria-labelledby="cctv-nearby-title" hidden>
+                <div class="cctv-selected">
+                  <span>기준 도로명주소</span>
+                  <strong id="cctv-selected-address"></strong>
+                </div>
+                <div class="cctv-result-heading">
+                  <h3 id="cctv-nearby-title">가까운 CCTV</h3>
+                  <span id="cctv-data-time"></span>
+                </div>
+                <ol class="cctv-list" id="cctv-list"></ol>
+              </section>
+
+              <p class="cctv-disclaimer">공공데이터 위치를 바탕으로 한 참고 정보이며, 실제 설치·운영 상태와 다를 수 있습니다. 긴급 현장 판단은 관할 지령·내부 시스템으로 다시 확인하세요.</p>
+            </div>
+          </details>
+        </section>
+
         <article class="answer-card" id="answer-card" aria-live="polite" aria-labelledby="answer-title" hidden>
           <div class="answer-heading">
             <span class="answer-kicker">Sheets 자료 기반 답변</span>
